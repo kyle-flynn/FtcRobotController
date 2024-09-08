@@ -38,6 +38,21 @@ import com.qualcomm.robotcore.hardware.TouchSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.JavaUtil;
 
+/*
+ * The following is the software to run the Beer City Bots robot in 30 hours for the
+ * 2024-2025 FIRST Tech Challenge game. The robot supports a functional state machine
+ * and override mode. Code was originally written using the OnBot Java web interface,
+ * but at 10:00pm the website ate my code and was unrecoverable.
+ *
+ * This version was re-written at 2:00am. Your mileage may vary on code cleanliness and
+ * practicality.
+ * 
+ * Additional milestones that would have been nice if we had more time:
+ *  1. Make "override" mode more fail-safe, and incorporate it into the actual robot state.
+ *  2. Find a more reliable way to reset the intake arm encoder, or reach it's down position
+ *      * If we had time, a limit switch would probably help out here
+ *  3. General code cleanup and better implementation of best practices
+ */
 @TeleOp(name="Beer City Bot", group="Linear OpMode")
 public class BeerCityBot extends LinearOpMode {
     // [LIFT] Constant declarations
@@ -61,7 +76,7 @@ public class BeerCityBot extends LinearOpMode {
 
     // [CLIMB] Constant declarations
     private final int CLIMB_HOME_POSITION = 0;
-    private final int CLIMB_MAX_POSITION = -27500;
+    private final int CLIMB_MAX_POSITION = -27000;
     private final double CLIMB_POWER = 1.0;
 
     // Robot state declarations
@@ -105,7 +120,7 @@ public class BeerCityBot extends LinearOpMode {
 
     private ElapsedTime time;
 
-    /**
+    /*
      * NOTE: Before the robot is started, it is assumed that the robot is in the following configuration:
      * LIFT - is set to the "home" position, bottomed out
      * INTAKE ARM - is set to the "home" position, all the way up in starting configuration
@@ -138,14 +153,25 @@ public class BeerCityBot extends LinearOpMode {
 
         // Run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
+            // Read all of our driver and operator controls
             readDriverInputs();
             readOperatorInputs();
+
+            // Constantly drive the robot while the OpMode is active
             drive();
+
+            // Constantly check if the lift hits the limit switch, and reset the encoders.
             updateLift();
+
+            // Constantly update our telemetry in the driver station app.
             updateTelemetry();
         }
     }
 
+    /**
+     * Helper function to separate out all of our hardware setup and mappings.
+     * These are all from the 'bcb-kyle' configuration within the control hub.
+     */
     private void mapHardware() {
         leftFront = hardwareMap.get(DcMotor.class, "leftFront");
         leftBack = hardwareMap.get(DcMotor.class, "leftBack");
@@ -172,6 +198,14 @@ public class BeerCityBot extends LinearOpMode {
         climbArm.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
     }
 
+    /**
+     * Since the robot will be controlled via state machine, this method will control
+     * advancing to which state from the current state. The order is as follows:
+     * drive -> intake -> hand off -> low goal -> high goal
+     *
+     * @param advance boolean value to determine whether to move forward or backward in the
+     *                state machine
+     */
     private void advanceRobotState(boolean advance) {
         switch (robotState) {
             case DRIVE:
@@ -194,6 +228,10 @@ public class BeerCityBot extends LinearOpMode {
         }
     }
 
+    /**
+     * Whenever the robot state gets updated, we need to update all of our systems. Here
+     * we update all motors and their positions according to the current state of the robot.
+     */
     private void updateRobotSystemPositions() {
         switch (robotState) {
             case DRIVE:
@@ -220,12 +258,24 @@ public class BeerCityBot extends LinearOpMode {
                 intakeArm.setTargetPosition(INTAKE_ARM_HOME_POSITION);
                 lift.setTargetPosition(LIFT_HOME_POSITION);
         }
+
+        /*
+         * It's important to note that you can only set RUN_TO_POSITION after you've called
+         * setTargetPosition(), otherwise the OpMode will crash when started.
+         *
+         * Also note that the setPower() method only needs to be called once, and the polarity
+         * (positive/negative) is not required while the motors are being driven by encoders.
+         */
         intakeArm.setPower(INTAKE_ARM_POWER);
         intakeArm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         lift.setPower(LIFT_POWER);
         lift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
     }
 
+    /**
+     * When robot state is updated, the servos also need to be updated. The robot currently has one
+     * continuous rotation servo, and a normal servo.
+     */
     private void updateRobotSystemServos() {
         switch (robotState) {
             case DRIVE:
@@ -251,6 +301,10 @@ public class BeerCityBot extends LinearOpMode {
         }
     }
 
+    /**
+     * Helper function to read driver inputs. This was ripped straight from the "mech_camp" blocks
+     * code, ported over to Java. Speed can be changed via the driver's dpad.
+     */
     private void readDriverInputs() {
         if (gamepad1.dpad_up) {
             speed = 1;
@@ -265,6 +319,10 @@ public class BeerCityBot extends LinearOpMode {
         denominator = JavaUtil.maxOfList(JavaUtil.createListWith(1, Math.abs(forward) + strafe + turn));
     }
 
+    /**
+     * Small helper function to apply power to the drive motors. Also ripped straight from the
+     * "mech_camp" blocks code.
+     */
     private void drive() {
         leftFront.setPower((forward + strafe + turn) / denominator);
         leftBack.setPower((forward - (strafe - turn)) / denominator);
@@ -272,18 +330,26 @@ public class BeerCityBot extends LinearOpMode {
         rightBack.setPower((forward + (strafe - turn)) / denominator);
     }
 
+    /**
+     * Helper function to read operator inputs. All inputs here are presented via a "touch and go"
+     * button press, not while held. Interlocking logic between a boolean value and current state
+     * of the button ensure code is only ran once inside of the if-statements.
+     */
     private void readOperatorInputs() {
         if (gamepad2.a && lastStateChangeButton != 0) {
+            // Advance the robot state machine
             lastStateChangeButton = 0;
             advanceRobotState(true);
             updateRobotSystemPositions();
             updateRobotSystemServos();
         } else if (gamepad2.b && lastStateChangeButton != 1) {
+            // Reverse the robot state machine
             lastStateChangeButton = 1;
             advanceRobotState(false);
             updateRobotSystemPositions();
             updateRobotSystemServos();
         } else if (gamepad2.x && lastStateChangeButton != 2) {
+            // Return the robot to it's "home" state, i.e. just driving
             lastStateChangeButton = 2;
             robotState = RobotState.DRIVE;
             updateRobotSystemPositions();
@@ -297,6 +363,7 @@ public class BeerCityBot extends LinearOpMode {
         }
 
         if (gamepad2.y && !isScoring) {
+            // Toggle the servo's position between home and scoring
             boolean isServoHome = bucketServo.getPosition() == BUCKET_HOME_POSITION;
             bucketServo.setPosition(isServoHome  ? BUCKET_SCORING_POSITION : BUCKET_HOME_POSITION);
             isScoring = true;
@@ -304,6 +371,7 @@ public class BeerCityBot extends LinearOpMode {
             isScoring = false;
         }
 
+        // We use the left/right bumpers to automate the climber going from min/max.
         if (gamepad2.right_bumper && !isClimbing) {
             climbArm.setTargetPosition(CLIMB_MAX_POSITION);
             climbArm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
@@ -322,6 +390,7 @@ public class BeerCityBot extends LinearOpMode {
             isClimbing = false;
         }
 
+        // When the operator presses "start", the robot enters override mode.
         if (gamepad2.start && !isUsingOverride) {
             isUsingOverride = true;
             robotStateOverride = !robotStateOverride;
@@ -334,6 +403,7 @@ public class BeerCityBot extends LinearOpMode {
             isUsingOverride = false;
         }
 
+        // Only read override operator inputs if the robot is actually in override mode.
         if (robotStateOverride) {
             handleOverrides();
         }
@@ -350,6 +420,10 @@ public class BeerCityBot extends LinearOpMode {
     }
 
 
+    /**
+     * Update function to check for when the limit switch on the lift system is pressed. If the
+     * limit switch is pressed, we reset the encoder value to 0, so that we maintain consistency.
+     */
     private void updateLift() {
         if (liftLimit.isPressed() && !liftLimitReached) {
             liftLimitReached = true;
@@ -359,6 +433,9 @@ public class BeerCityBot extends LinearOpMode {
         }
     }
 
+    /**
+     * Small helper function to just display data to the driver station app.
+     */
     private void updateTelemetry() {
         telemetry.addData("Robot State", robotStateOverride ? "OVERRIDE" : robotState.toString());
         telemetry.addLine();
