@@ -46,7 +46,7 @@ import org.firstinspires.ftc.robotcore.external.JavaUtil;
  *
  * This version was re-written at 2:00am. Your mileage may vary on code cleanliness and
  * practicality.
- * 
+ *
  * Additional milestones that would have been nice if we had more time:
  *  1. Make "override" mode more fail-safe, and incorporate it into the actual robot state.
  *  2. Find a more reliable way to reset the intake arm encoder, or reach it's down position
@@ -67,7 +67,7 @@ public class BeerCityBot extends LinearOpMode {
     private final int INTAKE_ARM_HAND_OFF_POSITION = -4000;
     private final int INTAKE_ARM_SCORING_POSITION = -5000;
     private final double INTAKE_ARM_POWER = 1.0;
-    private final double INTAKE_SERVO_POWER = -0.5;
+    private final double INTAKE_SERVO_POWER = -1;
 
     // [BUCKET] Constant declarations
     private final double BUCKET_HOME_POSITION = 0.2;
