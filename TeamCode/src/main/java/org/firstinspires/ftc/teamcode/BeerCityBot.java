@@ -57,13 +57,13 @@ import org.firstinspires.ftc.robotcore.external.JavaUtil;
 public class BeerCityBot extends LinearOpMode {
     // [LIFT] Constant declarations
     private final int LIFT_HOME_POSITION = 0;
-    private final int LIFT_LOW_POSITION = 2000;
-    private final int LIFT_HIGH_POSITION = 4000;
+    private final int LIFT_LOW_POSITION = 2250;
+    private final int LIFT_HIGH_POSITION = 4190;
     private final double LIFT_POWER = 0.5;
 
     // [INTAKE] Constant declarations
     private final int INTAKE_ARM_HOME_POSITION = -2000;
-    private final int INTAKE_ARM_DOWN_POSITION = -10200;
+    private final int INTAKE_ARM_DOWN_POSITION = -10220;
     private final int INTAKE_ARM_HAND_OFF_POSITION = -4000;
     private final int INTAKE_ARM_SCORING_POSITION = -5000;
     private final double INTAKE_ARM_POWER = 1.0;
@@ -71,7 +71,8 @@ public class BeerCityBot extends LinearOpMode {
 
     // [BUCKET] Constant declarations
     private final double BUCKET_HOME_POSITION = 0.2;
-    private final double BUCKET_SCORING_POSITION = 0.8;
+    private final double BUCKET_SCORING_POSITION = 0.26;
+    private final double BUCKET_TRAVEL_POSITION = 0.5;
     private final double BUCKET_HAND_OFF_POSITION = 0.75;
 
     // [CLIMB] Constant declarations
@@ -292,9 +293,11 @@ public class BeerCityBot extends LinearOpMode {
                 break;
             case LOW_GOAL:
                 intakeServo.setPower(0.0);
+                bucketServo.setPosition(BUCKET_TRAVEL_POSITION);
                 break;
             case HIGH_GOAL:
                 intakeServo.setPower(0.0);
+                bucketServo.setPosition(BUCKET_TRAVEL_POSITION);
                 break;
             default:
                 intakeServo.setPower(0.0);
@@ -364,8 +367,8 @@ public class BeerCityBot extends LinearOpMode {
 
         if (gamepad2.y && !isScoring) {
             // Toggle the servo's position between home and scoring
-            boolean isServoHome = bucketServo.getPosition() == BUCKET_HOME_POSITION;
-            bucketServo.setPosition(isServoHome  ? BUCKET_SCORING_POSITION : BUCKET_HOME_POSITION);
+            boolean isServoScoring = bucketServo.getPosition() == BUCKET_SCORING_POSITION;
+            bucketServo.setPosition(isServoScoring  ? BUCKET_HOME_POSITION : BUCKET_SCORING_POSITION);
             isScoring = true;
         } else if (!gamepad2.y && isScoring) {
             isScoring = false;
